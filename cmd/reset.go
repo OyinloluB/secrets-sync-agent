@@ -1,40 +1,43 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/OyinloluB/secrets-sync-agent/internal/db"
 	"github.com/spf13/cobra"
 )
 
 // resetCmd represents the reset command
 var resetCmd = &cobra.Command{
 	Use:   "reset",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Delete all secrets and reset ID counters",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("reset called")
+		confirm := ""
+		fmt.Println("⚠️  WARNING: This will delete all secrets permanently. Type 'yes' to confirm:")
+		fmt.Scanln(&confirm)
+
+		if confirm != "yes" {
+			fmt.Println("Reset cancelled.")
+			return
+		}
+
+		_, err := db.DB.Exec(`DELETE FROM secrets;`)
+		if err != nil {
+			fmt.Printf("Failed to delete secrets: %v\n", err)
+			os.Exit(1)
+		}
+
+		_, err = db.DB.Exec(`DELETE FROM sqlite_sequence WHERE name='secrets';`)
+		if err != nil {
+			fmt.Printf("Failed to reset ID sequence: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("All secrets deleted; agent reset successfully!")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(resetCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// resetCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// resetCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
