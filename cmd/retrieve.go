@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/OyinloluB/secrets-sync-agent/internal/db"
 	"github.com/OyinloluB/secrets-sync-agent/internal/encryption"
@@ -27,8 +28,10 @@ var retrieveCmd = &cobra.Command{
 		}
 
 		var encryptedValue string
-		query := `SELECT value FROM secrets WHERE key = ?;`
-		err := db.DB.QueryRow(query, retrieveKey).Scan(&encryptedValue)
+		var expiresAt sql.NullString
+
+		query := `SELECT value, expires_at FROM secrets WHERE key = ?;`
+		err := db.DB.QueryRow(query, retrieveKey).Scan(&encryptedValue, &expiresAt)
 
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -37,6 +40,18 @@ var retrieveCmd = &cobra.Command{
 			}
 			fmt.Printf("Failed to retrieve secret: %v\n", err)
 			os.Exit(1)
+		}
+
+		if expiresAt.Valid && expiresAt.String != "" {
+			expiryTime, parseErr := time.Parse(time.RFC3339, expiresAt.String)
+			if parseErr != nil {
+				fmt.Printf("Invalid expiration date format: %v\n", parseErr)
+			} else {
+				if time.Now().After(expiryTime) {
+					fmt.Println("Secret has expired and cannot be retrieved.")
+					return
+				}
+			}
 		}
 
 		plaintext, err := encryption.Decrypt(encryptedValue, retrieveEncryptionKey)

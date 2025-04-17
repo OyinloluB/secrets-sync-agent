@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var secretScope string
+var secretExpiresAt string
 var secretKey string
 var secretValue string
 var encryptionKey string
@@ -32,8 +34,8 @@ var storeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		insertQuery := `INSERT INTO secrets (key, value) VALUES (?, ?);`
-		_, err = db.DB.Exec(insertQuery, secretKey, encryptedValue)
+		insertQuery := `INSERT INTO secrets (key, value, scope, expires_at) VALUES (?, ?, ?, ?);`
+		_, err = db.DB.Exec(insertQuery, secretKey, encryptedValue, secretScope, secretExpiresAt)
 		if err != nil {
 			fmt.Printf("Failed to store secret: %v\n", err)
 			os.Exit(1)
@@ -49,4 +51,6 @@ func init() {
 	storeCmd.Flags().StringVarP(&secretKey, "key", "k", "", "Key for the secret")
 	storeCmd.Flags().StringVarP(&secretValue, "value", "v", "", "Value of the secret")
 	storeCmd.Flags().StringVarP(&encryptionKey, "encryption-key", "e", "", "Encryption key (must be 32 characters)")
+	storeCmd.Flags().StringVarP(&secretScope, "scope", "s", "default", "Scope/environment for the secret (e.g., dev, prod)")
+	storeCmd.Flags().StringVarP(&secretExpiresAt, "expires-at", "x", "", "Expiration date for the secret (optional, format: YYYY-MM-DD)")
 }
